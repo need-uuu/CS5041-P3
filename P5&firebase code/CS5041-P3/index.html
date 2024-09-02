@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="bluetooth.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.1/p5.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.1/addons/p5.sound.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <meta charset="utf-8" />
+
+</head>
+<body>
+<p id="feelingText">Express today's feeling!</p>
+<p id="nowTemperature">Now temperature🌡: </p> <p id="nowHumidity">Now humidity💦: </p>
+
+<input id="input-field" type="text" placeholder="Enter your feeling">
+<button id="submit-button">😄</button>
+<script src="sketch.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js";
+  import { getAuth, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-auth.js";
+  import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-functions.js";
+  import { getDatabase, serverTimestamp, push, ref, onValue, query, orderByChild, equalTo, limitToLast } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-database.js";
+  let textDataTem = [];
+  let textDataHum = [];
+
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDBjUEw_DQNMQsZJWfTtLL0PQJoH-xF0kk",
+    authDomain: "sta-cs5041.firebaseapp.com",
+    databaseURL: "https://sta-cs5041-p3.firebaseio.com",
+    projectId: "sta-cs5041",
+    storageBucket: "sta-cs5041.appspot.com",
+    messagingSenderId: "639987847762",
+    appId: "1:639987847762:web:1d86691716f6fb5443458b"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const functions = getFunctions(app);
+  const database = getDatabase(app);
+  const firebasetoken = "37a4ef81-f24f-4292-9a74-37e84c9391cb";
+
+
+  (async () => {
+    const getToken = httpsCallable(functions, "getToken");
+    const token = await getToken({ token: firebasetoken });
+    if (token?.data?.result === "ok" && token?.data?.token) {
+      const userCredentials = await signInWithCustomToken(auth, token.data.token);
+      const user = userCredentials.user;
+
+      const inputField = document.getElementById('input-field');
+      const buttonField = document.getElementById('submit-button');
+
+      const temperatureElement = document.getElementById('nowTemperature');
+      const humidityElement = document.getElementById('nowHumidity');
+
+      onValue(query(ref(database, 'data'), orderByChild('groupId'), equalTo(2), limitToLast(3)), (snapshot) => {
+        const data = snapshot.val();
+        textDataTem = Object.values(data ?? {}).map(el => el?.number?.toString() ?? '');
+        console.log(textDataTem)
+        const lastEntry = Object.values(data)[2]
+        temperatureElement.textContent = `Now temperature🌡:${lastEntry.number}°C`;
+      });
+
+      onValue(query(ref(database, 'data'), orderByChild('groupId'), equalTo(6), limitToLast(3)), (snapshot) => {
+        const data = snapshot.val();
+        textDataHum = Object.values(data ?? {}).map(el => el?.number?.toString() ?? '');
+        console.log(textDataHum)
+        const lastEntry2 = Object.values(data)[2]
+        humidityElement.textContent = `Now humidity💦:${lastEntry2.number}%`
+      });
+
+
+      buttonField.addEventListener('click', () => {
+        let randomGroupId = Math.floor(Math.random() * 6) + 30;
+        push(ref(database, "data"), {
+          userId: user.uid,
+          groupId: randomGroupId,
+          timestamp: serverTimestamp(),
+          type: "string",
+          string: inputField.value.toString()
+        });
+        let displayNumber = randomGroupId - 29;
+        alert(`Your message has been sent as display number ${displayNumber}!`);
+        inputField.value = '';
+      });
+
+
+      setInterval(() => {
+        if (window.currentBallColor) {
+          let [red, green, blue] = window.currentBallColor;
+          let randomGroupId2 = Math.floor(Math.random() * 6) + 36;
+          push(ref(database, "data"), {
+            userId: user.uid,
+            groupId: randomGroupId2,
+            timestamp: serverTimestamp(),
+            type: "string",
+            string: JSON.stringify({
+              red: red,
+              green: green,
+              blue: blue,
+              brightness: 255
+            })
+          });
+
+          window.currentBallColor = null;
+        }
+      }, 1);
+
+    } else {
+      console.error(token?.data?.reason ?? "unknownError")
+    }
+  })();
+
+
+</script>
+</body>
+</html>
+
+
